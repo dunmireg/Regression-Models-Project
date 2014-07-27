@@ -1,5 +1,5 @@
 ---
-
+##output: pdf_document
 ---
 #Automatic vs Manual MPG Regression Models
 
@@ -41,24 +41,54 @@ R has automatically picked "Automatic" transimission cars as the baseline, so th
 
 ##Finding Improved Linear Model
 
-Now let's find a better fit for our model. I'm going to call the step function which uses the stepwise algorithm to automatically find the "best" fit to the data. 
+Now let's find a better fit for our model. I'm going to update the original fit model with each variable in the mtcars set one at a time, building more complex models. I will then examine the Pr(>F) value and if it is statistically significant (less than 0.05) this means that adding the additional variable provides a better "significantly" better fit to the data.
 
 ```{r}
-bestfit <- step(lm(mpg~., data = mtcars), trace = 0, steps = 100000, direction = "both")
+fit2 <- update(fit, mpg ~am + wt)
+fit3 <- update(fit, mpg ~am + wt + qsec)
+fit4 <- update(fit, mpg ~ am + wt + qsec + cyl)
+anova(fit, fit2, fit3, fit4)
+```
+
+It is clear that the fit3 model, mpg being predicted by am, wt, and qsec gives us the strongest evidence to reject the null hypothesis. I have not included the other fits for the sake of brevity, but they do not fit the data significantly better.  
+
+```{r}
+summary(fit3)
+```
+
+This is much better. Now we have an adjusted R squared of 0.8336, meaning this model explains 88.36% of the variance making for a much better fit. Also the coefficients all have small p-values (< 0.05), so they are statistically significant (although the Intercept is not). Now I'll examine some interactions to see if they should be included. 
+
+```{r}
+bestfit <- update(fit, mpg ~ am + wt + qsec + am*wt)
+anova(fit3, bestfit)
+```
+
+After trial and error (not detailed here for sake of space) I have discovered that the interaction am*wt should be included to create my bestfit model. The F test is clearly small, meaning the change is significant. 
+
+```{r}
 summary(bestfit)
 ```
 
-The adjusted R squared (which I am using because this statistic penalizes adding more variables, which increases the "normal R squared") is now 0.8336, which is significantly better. Now I'm going to add an interaction term and see how these compare using an ANOVA test. 
+Now we can see we have an adjusted R squared of 0.8804 and small p-values for the coefficients, so this model explains 88.04% of the variance in our data providing a good fit with statistically significant coefficients. 
+
 
 ```{r}
-bestfit2 <- lm(mpg ~ wt + qsec + am + wt*qsec*am, data = mtcars)
-anova(bestfit, bestfit2)
+par(mfrow = c(2,2))
+plot(bestfit)
 ```
 
-Since the probability of getting our F statistic is 0.02 and lower than the standard P-value 0.05 I would reject the null hypothesis (that mpg is predicted without an interaction term). 
+There does not seem to be a pattern in the residual plot, meaning we have avoided heteroskedasticity (non-constant variance). Thus bestfit seems to be a good overall model for explaining mileage
+
+##Conclusions
+
+So what does this mean? Well if we look at the difference between an automatic and manual car, a manual transmission car gets 14.079 more miles to the gallon than an Automatic - 4.141 * the weight. 
 
 ```{r}
-summary(bestfit2)
-````
+14.079 - 4.141 * mean(mtcars$wt)
+```
 
-Note also how the adjusted R squared is now 0.8759 which is even higher than the original fit found from the step function. 
+So we can see on average a Manual car only gets 0.76 more miles to the gallon than an Automatic (all other things being equal). This is not terribly much. But again this is for averages, if a car is light weight it probably makes sense to get a manual transmission to get better mileage (under this model)
+
+##Further Investigation and Notes
+
+It would be interesting to see how this compares model performs on a training set. Mtcars only contains 32 observations, making this a very small sample. This data also comes from the 1974 issue of Motor Trend, which is not quite up to date with modern models. 
