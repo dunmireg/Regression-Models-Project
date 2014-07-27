@@ -1,0 +1,64 @@
+---
+
+---
+#Automatic vs Manual MPG Regression Models
+
+##Executive Summary
+
+I am working for Motor Trend, a magazine about the auto industry. This paper will examine the relationship between a set of variables and miles per gallon (MPG) found in the mtcars data set provided by R. In particular I am looking at the questions 
+
+-Is automatic or manual transmission better for MPG
+-Quantify this difference
+
+##Preliminary Investigation and Exploratory Analysis
+
+First I'll load the data into R. Then I'll print the variables in the data set so we can see what we're working with. 
+
+```{r}
+data(mtcars)
+names(mtcars)
+```
+
+The "am" column is the transimission (0 = automatic, 1 = manual). I want to use that to predict mpg. I'll turn "am" into a factor (and label it appropriately) and make a boxplot to get a sense of the data
+
+```{r}
+mtcars$am <- as.factor(mtcars$am)
+levels(mtcars$am) <- c("Automatic", "Manual")
+boxplot(mpg ~ am, data = mtcars, xlab = "Transmission Type", ylab = "MPG", main = "MPG Distribution by Transmission")
+```
+
+That's interesting. So it seems at a glance that manual transimissions tend to have better mileage than automatic. 
+
+##Basic Linear Model
+
+Since we're interested in transmissions, I'll fit a linear model based purely on the transimission. 
+```{r}
+fit <- lm(mpg ~ am, data = mtcars)
+summary(fit)
+```
+
+R has automatically picked "Automatic" transimission cars as the baseline, so the Intercept of 17.147 is actually the average mpg for automatic cars. The coefficient for the "Manual" transmission is interepreted as "how many more miles per gallon on average do you get by switching from an Automatic to a Manual" which is 7.245. This is consistent with our earlier findindgs, it seems that "Manual" transmission cars on average get 7.245 MORE miles to the gallon than automatic cars do. However, note the Adjusted R-Squared is only 0.3385, which is quite low. This means this model does not fit the data terribly well. 
+
+##Finding Improved Linear Model
+
+Now let's find a better fit for our model. I'm going to call the step function which uses the stepwise algorithm to automatically find the "best" fit to the data. 
+
+```{r}
+bestfit <- step(lm(mpg~., data = mtcars), trace = 0, steps = 100000, direction = "both")
+summary(bestfit)
+```
+
+The adjusted R squared (which I am using because this statistic penalizes adding more variables, which increases the "normal R squared") is now 0.8336, which is significantly better. Now I'm going to add an interaction term and see how these compare using an ANOVA test. 
+
+```{r}
+bestfit2 <- lm(mpg ~ wt + qsec + am + wt*qsec*am, data = mtcars)
+anova(bestfit, bestfit2)
+```
+
+Since the probability of getting our F statistic is 0.02 and lower than the standard P-value 0.05 I would reject the null hypothesis (that mpg is predicted without an interaction term). 
+
+```{r}
+summary(bestfit2)
+````
+
+Note also how the adjusted R squared is now 0.8759 which is even higher than the original fit found from the step function. 
